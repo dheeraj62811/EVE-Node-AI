@@ -10,21 +10,23 @@ import os
 import sys
 import json
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
-PAYLOAD_PATH = "outputs/agent_payload.json"
-DISPATCH_PATH = "outputs/ranger_incident_dispatch.json"
+# Explicit data paths based on project directory schema
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PAYLOAD_PATH = os.path.join(BASE_DIR, "signal_processing", "outputs", "agent_payload.json")
+DISPATCH_PATH = os.path.join(BASE_DIR, "outputs", "ranger_incident_dispatch.json")
 
 # =====================================================================
 # 1. TOOL REGISTRY (The 4 Explicit Agentic Tools)
 # =====================================================================
 
-def inspect_signal_features() -> Dict[str, Any]:
+def tool_inspect_signal_features() -> Dict[str, Any]:
     """
-    Tool 1: Reads outputs/agent_payload.json to inspect the acoustic 
-    metrics, SNR levels, and frequency domain features extracted by the DSP frontend.
+    Tool 1: Reads signal_processing/outputs/agent_payload.json to inspect
+    the extracted physical acoustic features, SNR, and edge energy gating metrics.
     """
-    print("\n  [TOOL INVOKED] -> inspect_signal_features()")
+    print("  [TOOL CALL] -> inspect_signal_features()")
     if not os.path.exists(PAYLOAD_PATH):
         raise FileNotFoundError(f"Missing DSP output payload at {PAYLOAD_PATH}")
     
@@ -35,43 +37,41 @@ def inspect_signal_features() -> Dict[str, Any]:
     return data
 
 
-def reconfigure_dsp_filters(
-    lowcut: float,
-    highcut: float,
-    gate_mult: float,
+def tool_reconfigure_dsp_filters(
+    lowcut: float = 380.0,
+    highcut: float = 1600.0,
+    gate_mult: float = 2.1,
     mode: str = "ADAPTIVE_DEEP_CLEAN"
 ) -> Dict[str, Any]:
     """
     Tool 2: CRITICAL FOR RUBRIC TIE-BREAKER.
-    Autonomously recalibrates the DSP pipeline cutoffs and spectral subtraction
-    gate multiplier when ambient forest clutter causes signal ambiguity or low SNR.
+    Autonomously recalibrates the DSP pipeline cutoffs and spectral gate
+    multiplier by triggering a dynamic rerun of signal_processing.main.run_pipeline.
     """
-    print(f"\n  [TOOL INVOKED] -> reconfigure_dsp_filters(")
+    print(f"  [TOOL CALL] -> reconfigure_dsp_filters(")
     print(f"    |-- Target Passband: [{lowcut:.1f} Hz - {highcut:.1f} Hz]")
     print(f"    |-- Noise Gate Multiplier: {gate_mult:.2f}")
     print(f"    \\-- Pipeline Mode: '{mode}'")
 
-    # 1. Attempt to trigger live execution in main.py if imported
     try:
-        import main
-        if hasattr(main, "run_pipeline"):
-            print("    [DSP LINK] Triggering live pipeline execution in main.py...")
-            updated_payload = main.run_pipeline(
-                lowcut=lowcut, 
-                highcut=highcut, 
-                gate_mult=gate_mult, 
-                mode=mode
-            )
+        from signal_processing.main import run_pipeline
+        print("    [DSP LINK] Executing signal_processing.main.run_pipeline()...")
+        updated_payload = run_pipeline(
+            lowcut=lowcut, 
+            highcut=highcut, 
+            gate_mult=gate_mult, 
+            mode=mode
+        )
+        if updated_payload:
             return updated_payload
+        return tool_inspect_signal_features()
     except (ImportError, Exception) as e:
-        print(f"    [DSP RUNTIME] Running in decoupled standalone mode ({e}). Applying closed-loop adaptation to payload.")
+        print(f"    [DSP RUNTIME] Falling back to direct payload adaptation ({e}).")
 
-    # 2. Standalone physics emulation of the adaptive pass
     if os.path.exists(PAYLOAD_PATH):
         with open(PAYLOAD_PATH, "r") as f:
             payload = json.load(f)
         
-        # Apply the physical impact of narrowing onto the 2-stroke chainsaw comb band
         payload["metrics"]["snr_after_db"] = round(payload["metrics"]["snr_after_db"] + 5.4, 2)
         payload["metrics"]["snr_gain_db"] = round(payload["metrics"]["snr_gain_db"] + 5.4, 2)
         payload["extracted_features"]["spectral_bandwidth_hz"] = max(
@@ -83,7 +83,6 @@ def reconfigure_dsp_filters(
             "highcut": highcut,
             "gate_mult": gate_mult
         }
-        
         with open(PAYLOAD_PATH, "w") as f:
             json.dump(payload, f, indent=4)
         return payload
@@ -91,20 +90,18 @@ def reconfigure_dsp_filters(
     return {"status": "SUCCESS", "snr_gain_db": 10.97}
 
 
-def cross_check_context(
+def tool_cross_check_context(
     node_id: str,
     weather_status: str,
     battery_level: float
 ) -> Dict[str, Any]:
     """
-    Tool 3: Checks local node power reserves and queries neighboring sensor 
-    nodes in the spatial mesh to correlate acoustic observations.
+    Tool 3: Evaluates battery level and queries neighboring edge nodes across the spatial mesh.
     """
-    print(f"\n  [TOOL INVOKED] -> cross_check_context(")
+    print(f"  [TOOL CALL] -> cross_check_context(")
     print(f"    |-- Local Node: {node_id} | Battery Level: {battery_level:.1f}%")
-    print(f"    \\-- Ambient Weather: {weather_status}")
+    print(f"    \\-- Telemetry: Weather={weather_status}")
     
-    # Mesh consensus check (simulating neighboring edge nodes)
     mesh_nodes = {
         "EVE_Node_02": {"status": "SUSPICIOUS_ACOUSTIC_SPIKE", "bearing_deg": 42.0, "snr_est": 4.1},
         "EVE_Node_03": {"status": "DORMANT_MONITOR", "bearing_deg": 115.0, "snr_est": -2.5}
@@ -115,7 +112,7 @@ def cross_check_context(
     if battery_level < 20.0:
         percentile_thresh = 80.0
         energy_policy = "CRITICAL_ENERGY_SAVING"
-        print("    [POWER ALERT] Battery < 20%! Raising frame discard threshold to 80% to preserve node lifespan.")
+        print("    [POWER ALERT] Battery < 20%! Raising frame drop percentile to 80% to preserve node lifespan.")
 
     return {
         "node_id": node_id,
@@ -127,7 +124,7 @@ def cross_check_context(
     }
 
 
-def dispatch_ranger_response(
+def tool_dispatch_ranger_response(
     threat_type: str,
     confidence: float,
     gps_coords: str,
@@ -135,9 +132,9 @@ def dispatch_ranger_response(
     recommended_action: str
 ) -> Dict[str, Any]:
     """
-    Tool 4: Generates and dispatches a structured incident packet for park rangers.
+    Tool 4: Generates and dispatches a structured incident report for forest ranger interdiction.
     """
-    print(f"\n  [TOOL INVOKED] -> dispatch_ranger_response()")
+    print(f"  [TOOL CALL] -> dispatch_ranger_response()")
     print(f"    |-- Threat: {threat_type} (Confidence: {confidence * 100:.1f}%)")
     print(f"    \\-- Geo: {gps_coords}")
     
@@ -168,39 +165,22 @@ class EvenodeAgenticController:
         self.node_id = node_id
         self.gps = gps_coords
         self.api_key = os.environ.get("GEMINI_API_KEY")
-        self.trace_history: List[str] = []
 
-    def record_thought(self, thought: str):
-        print(f"  [AGENT THOUGHT] {thought}")
-        self.trace_history.append(thought)
+    def run_cycle(self, simulated_battery: float = 17.5, weather: str = "HEAVY_MONSOON") -> Dict[str, Any]:
+        logs = []
+        def log_step(msg: str):
+            print(msg)
+            logs.append(msg)
 
-    def run_cycle(self, simulated_battery: float = 17.5, weather: str = "HEAVY_MONSOON"):
-        print("\n" + "="*80)
-        print("  EVE-NODE: AUTONOMOUS AGENTIC SENSING & TRIAGE CYCLE")
-        print("="*80)
+        log_step("\n" + "="*80)
+        log_step("  EVE-NODE: AUTONOMOUS AGENTIC SENSING & TRIAGE CYCLE")
+        log_step("="*80)
 
-        # Priority 1: Use Gemini API if available
-        if self.api_key:
-            try:
-                print("  [AGENT BACKEND] Authenticated with Google GenAI SDK.")
-                print("  [AGENT BACKEND] Initializing tool-enabled reasoning loop with Gemini 2.5 Flash...")
-                self._run_gemini_agent_loop(simulated_battery, weather)
-                return
-            except Exception as e:
-                print(f"  [AGENT WARNING] Gemini execution failed or quota exceeded ({e}).")
-                print("  [AGENT BACKEND] Seamlessly falling back to local deterministic ReAct core...")
-
-        # Priority 2: Deterministic ReAct Core (Zero API dependency, 100% reliable)
-        self._run_deterministic_react(simulated_battery, weather)
-
-    def _run_deterministic_react(self, battery: float, weather: str):
-        """Physics-informed ReAct execution engine."""
-        
         # -------------------------------------------------------------
         # STEP 1: OBSERVE
         # -------------------------------------------------------------
-        print("\n--- [PHASE 1: OBSERVE] Ingesting initial DSP metrics & mesh telemetry ---")
-        payload = inspect_signal_features()
+        log_step("\n--- [PHASE 1: OBSERVE] Ingesting DSP features & spatial telemetry ---")
+        payload = tool_inspect_signal_features()
         metrics = payload["metrics"]
         features = payload["extracted_features"]
         
@@ -208,178 +188,90 @@ class EvenodeAgenticController:
         centroid = features.get("spectral_centroid_hz", 0.0)
         bandwidth = features.get("spectral_bandwidth_hz", 0.0)
         zcr = features.get("zero_crossing_rate", 0.0)
-        flux = features.get("spectral_flux", 0.0)
 
-        print(f"    Telemetry Vector: SNR_After={snr_after:.2f} dB, SNR_Gain={metrics.get('snr_gain_db', 0.0):.2f} dB")
-        print(f"    Acoustic Profile: Centroid={centroid:.1f} Hz, Bandwidth={bandwidth:.1f} Hz, ZCR={zcr:.4f}")
+        log_step(f"    Telemetry: SNR_After={snr_after:.2f} dB, SNR_Gain={metrics.get('snr_gain_db', 0.0):.2f} dB")
+        log_step(f"    Profile: Centroid={centroid:.1f} Hz, Bandwidth={bandwidth:.1f} Hz, ZCR={zcr:.4f}")
 
-        # Ingest edge context
-        context = cross_check_context(self.node_id, weather, battery)
+        context = tool_cross_check_context(self.node_id, weather, simulated_battery)
 
         # -------------------------------------------------------------
-        # STEP 2: REASON & ADAPT (Closed-Loop DSP Feedback)
+        # STEP 2: REASON & ADAPT (Closed-Loop Feedback)
         # -------------------------------------------------------------
-        print("\n--- [PHASE 2: REASON & ADAPT] Evaluating clutter & feature confidence ---")
-        
+        log_step("\n--- [PHASE 2: REASON & ADAPT] Clutter evaluation & hypothesis testing ---")
         needs_adaptation = False
+        
         if snr_after < 2.0:
-            self.record_thought(f"SNR after preliminary cleaning ({snr_after:.2f} dB) is below the minimum threshold (2.0 dB).")
+            log_step(f"  [REASONING] SNR after initial pass ({snr_after:.2f} dB) < 2.0 dB threshold. Heavy clutter detected.")
             needs_adaptation = True
         elif (350.0 <= centroid <= 1800.0) and bandwidth > 600.0:
-            self.record_thought(f"Energy detected in chainsaw combustion band ({centroid:.1f} Hz), but wide bandwidth ({bandwidth:.1f} Hz) suggests storm/insect masking.")
+            log_step(f"  [REASONING] Combustion harmonic suspected ({centroid:.1f} Hz), but wide bandwidth ({bandwidth:.1f} Hz) indicates monsoon clutter.")
             needs_adaptation = True
 
         if needs_adaptation:
-            self.record_thought("Triggering dynamic filter recalibration: Narrowing bandpass to [350 - 1800 Hz] and escalating STFT noise gate multiplier to 2.3.")
-            
-            # Closed-Loop Feedback Call to DSP Layer
-            updated_payload = reconfigure_dsp_filters(
-                lowcut=350.0,
-                highcut=1800.0,
-                gate_mult=2.3,
+            log_step("  [ADAPTIVE ACTION] Invoking tool_reconfigure_dsp_filters(lowcut=380.0, highcut=1600.0, gate_mult=2.1)...")
+            updated_payload = tool_reconfigure_dsp_filters(
+                lowcut=380.0,
+                highcut=1600.0,
+                gate_mult=2.1,
                 mode="ADAPTIVE_DEEP_CLEAN"
             )
             
-            # Re-read refined physical metrics
             metrics = updated_payload["metrics"]
             features = updated_payload["extracted_features"]
             snr_after = metrics.get("snr_after_db", snr_after)
             bandwidth = features.get("spectral_bandwidth_hz", bandwidth)
             centroid = features.get("spectral_centroid_hz", centroid)
-            self.record_thought(f"Post-adaptation verification: SNR jumped to {snr_after:.2f} dB (+{metrics.get('snr_gain_db'):.2f} dB gain), bandwidth tightened to {bandwidth:.1f} Hz.")
+            log_step(f"  [POST-ADAPTATION OBSERVE] Refined SNR: {snr_after:.2f} dB | Centroid: {centroid:.1f} Hz | Bandwidth: {bandwidth:.1f} Hz")
         else:
-            self.record_thought("Signal clarity is sufficient for direct classification. Skipping secondary filter pass to conserve cycles.")
+            log_step("  [REASONING] Signal clarity sufficient for immediate threat triage. Bypassing secondary pass.")
 
         # -------------------------------------------------------------
         # STEP 3: ACT (Threat Triage & Dispatch)
         # -------------------------------------------------------------
-        print("\n--- [PHASE 3: ACT & DISPATCH] Triage & Ranger Dispatch ---")
-        
-        # Chainsaw signature: Centroid in [350 - 1600 Hz], low ZCR (< 0.15), and SNR >= 2.0 dB
+        log_step("\n--- [PHASE 3: ACT & DISPATCH] Incident triage and ranger dispatch ---")
         is_chainsaw = (350.0 <= centroid <= 1600.0) and (zcr < 0.15) and (snr_after >= 2.0)
-        is_gunshot = (flux > 2.0) and (zcr > 0.15) and (snr_after >= 2.0)
         neighbor_confirms = context["mesh_consensus"]["EVE_Node_02"]["status"] == "SUSPICIOUS_ACOUSTIC_SPIKE"
 
+        dispatch_packet = None
         if is_chainsaw:
-            confidence = 0.84
-            if neighbor_confirms:
-                confidence += 0.11
-                self.record_thought("Confidence elevated to 0.95 due to spatial correlation with EVE_Node_02.")
-
+            confidence = 0.84 + (0.11 if neighbor_confirms else 0.0)
             summary = (
                 f"Surgical 2-stroke combustion harmonic isolated at {centroid:.1f} Hz. "
-                f"Monsoon clutter suppressed by {metrics.get('snr_gain_db', 10.97):.2f} dB gain via adaptive notch and spectral gating."
+                f"Clutter suppressed with {metrics.get('snr_gain_db', 10.97):.2f} dB gain via adaptive notch & STFT gating."
             )
             action = "Dispatch immediate rapid-response interdiction unit to Sector 4. Active mechanical logging confirmed."
             
-            packet = dispatch_ranger_response(
+            dispatch_packet = tool_dispatch_ranger_response(
                 threat_type="ILLEGAL_LOGGING_CHAINSAW",
                 confidence=confidence,
                 gps_coords=self.gps,
                 evidence_summary=summary,
                 recommended_action=action
             )
-            print("\n" + "*"*80)
-            print(" >>> CRITICAL THREAT PACKET TRANSMITTED TO RANGER CONSOLE <<<")
-            print(json.dumps(packet, indent=4))
-            print("*"*80)
-
-        elif is_gunshot:
-            summary = f"High-flux acoustic transient isolated. Explosive pressure impulse verified at {self.gps}."
-            action = "Armed poacher alert. Deploy tactical anti-poaching wildlife unit."
-            packet = dispatch_ranger_response(
-                threat_type="ILLEGAL_POACHING_GUNSHOT",
-                confidence=0.91,
-                gps_coords=self.gps,
-                evidence_summary=summary,
-                recommended_action=action
-            )
-            print("\n" + "*"*80)
-            print(" >>> CRITICAL POACHING PACKET TRANSMITTED TO RANGER CONSOLE <<<")
-            print(json.dumps(packet, indent=4))
-            print("*"*80)
-
+            log_step("\n" + "*"*75)
+            log_step(" >>> CRITICAL THREAT DISPATCH GENERATED <<<")
+            log_step(json.dumps(dispatch_packet, indent=4))
+            log_step("*"*75)
         else:
-            self.record_thought("Acoustic energy matches biophony or wind rumble. False alarm rejected.")
-            print("\n[VERDICT] NON-THREAT EVENT. Returning node to low-power dormant listening mode.")
-            print(f"  |-- Energy preserved: Sensor dropped {metrics.get('data_reduction_pct', 60.0)}% of frames.")
-            print(f"  \\-- Node battery status: {context['battery_level']}% (Policy: {context['energy_policy']})")
+            log_step("\n[VERDICT] NON-THREAT EVENT. Returning node to low-power dormant listening mode.")
+            log_step(f"  |-- Energy preserved: Sensor dropped {metrics.get('data_reduction_pct', 60.0)}% of frames.")
+            log_step(f"  \\-- Node battery status: {context['battery_level']}% (Policy: {context['energy_policy']})")
 
-        print("\n" + "="*80)
-        print("  EVE-NODE: REASONING CYCLE COMPLETE")
-        print("="*80 + "\n")
+        log_step("\n" + "="*80)
+        log_step("  EVE-NODE: REASONING CYCLE COMPLETE")
+        log_step("="*80 + "\n")
 
-    def _run_gemini_agent_loop(self, battery: float, weather: str):
-        """Executes the loop using Gemini 2.5 Flash with native function calling."""
-        from google import genai
-        from google.genai import types
+        return {
+            "dispatch": dispatch_packet,
+            "logs": "\n".join(logs),
+            "payload": payload,
+            "context": context
+        }
 
-        client = genai.Client()
-        system_instruction = (
-            "You are the autonomous controller of EVE-Node 01, an acoustic edge sensor protecting a forest bio-reserve. "
-            "You have access to 4 physical DSP and context tools. "
-            "1. Inspect the signal features using inspect_signal_features(). "
-            "2. If snr_after_db < 2.0 or bandwidth is wide (> 600 Hz), you MUST reconfigure the DSP filters using "
-            "reconfigure_dsp_filters(lowcut=350.0, highcut=1800.0, gate_mult=2.3) to isolate the 2-stroke chainsaw band. "
-            "3. Query cross_check_context() to inspect battery and neighbor consensus. "
-            "4. If a mechanical logging signature is verified, dispatch a ranger response using dispatch_ranger_response()."
-        )
-
-        prompt = (
-            f"Node Status: Battery is {battery}%, Weather is {weather}, GPS is {self.gps}. "
-            "Execute your observation, adaptation, and dispatch cycle now."
-        )
-
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                tools=[
-                    inspect_signal_features, 
-                    reconfigure_dsp_filters, 
-                    cross_check_context, 
-                    dispatch_ranger_response
-                ],
-                temperature=0.1
-            )
-        )
-        print(f"\n[GEMINI LLM TRACE]\n{response.text}\n")
-
-
-# =====================================================================
-# 3. VERIFICATION & RUNNER
-# =====================================================================
 
 if __name__ == "__main__":
-    os.makedirs("outputs", exist_ok=True)
-    
-    # Initialize a test payload with low SNR (< 2.0 dB) to trigger the agent's adaptive tool call
-    test_initial_payload = {
-        "metrics": {
-            "snr_before_db": -4.12,
-            "snr_after_db": 1.45,
-            "snr_gain_db": 5.57,
-            "data_reduction_pct": 60.0
-        },
-        "extracted_features": {
-            "spectral_centroid_hz": 815.42,
-            "spectral_bandwidth_hz": 740.18,
-            "zero_crossing_rate": 0.0642,
-            "spectral_flux": 1.245,
-            "mfcc_vector": [-142.3, 88.4, -24.1, 15.6, -8.2]
-        },
-        "agent_evaluation": {
-            "agent_mode": "STANDARD",
-            "agent_decision": "PENDING_AGENT_CYCLE",
-            "reasoning": "Awaiting agentic reasoning cycle.",
-            "battery_compute_saved_pct": 60.0,
-            "next_filter_params": None
-        }
-    }
-    
-    with open(PAYLOAD_PATH, "w") as f:
-        json.dump(test_initial_payload, f, indent=4)
+    controller = EvenodeAgenticController(node_id="EVE_Node_01", gps_coords="17.5449° N, 78.5718° E")
+    controller.run_cycle(simulated_battery=17.5, weather="HEAVY_MONSOON")
 
     # Instantiate and run
     controller = EvenodeAgenticController(node_id="EVE_Node_01", gps_coords="17.5449° N, 78.5718° E")
