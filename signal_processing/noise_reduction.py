@@ -1,18 +1,23 @@
-import numpy as np
-import librosa
+"""
+STFT Spectral Subtraction Noise Gating for Rain and Broadband Hiss
+"""
 
-def spectral_denoise(data, sr, n_fft=1024, hop_length=512, gate_multiplier=1.6):
-    """Estimates stationary rain noise from initial frames and gates the STFT spectrum."""
-    stft = librosa.stft(data, n_fft=n_fft, hop_length=hop_length)
-    mag, phase = np.abs(stft), np.angle(stft)
-    
-    # Use first 0.5 seconds as ambient noise profile
-    noise_frames = max(1, int((0.5 * sr) / hop_length))
-    noise_profile = np.mean(mag[:, :noise_frames], axis=1, keepdims=True)
-    
-    # Soft spectral mask
-    mask = np.where(mag > (noise_profile * gate_multiplier), 1.0, 0.05)
-    cleaned_mag = mag * mask
-    
-    cleaned_stft = cleaned_mag * np.exp(1j * phase)
-    return librosa.istft(cleaned_stft, hop_length=hop_length, length=len(data))
+import numpy as np
+import scipy.signal as signal
+
+def spectral_denoise(audio: np.ndarray, sample_rate: int = 16000, gate_mult: float = 1.8, nperseg: int = 512) -> np.ndarray:
+    """
+    Suppresses stationary rain/wind clutter using short-time Fourier transform spectral gating.
+    """
+    f, t, Zxx = signal.stft(audio, fs=sample_rate, nperseg=nperseg, noverlap=nperseg // 2)
+    magnitude = np.abs(Zxx)
+    phase = np.angle(Zxx)
+
+    # Estimate noise spectrum from initial silent/ambient frames
+    noise_estimate = np.median(magnitude[:, :6], axis=1, keepdims=True)
+
+    # Spectral subtraction with residual spectral floor to prevent musical noise
+    cleaned_magnitude = np.maximum(magnitude - (gate_mult * noise_estimate), 0.02 * magnitude)
+
+    _, denoised_audio = signal.istft(cleaned_magnitude * np.exp(1j * phase), fs=sample_rate)
+    return denoised_audio[:len(audio)]
