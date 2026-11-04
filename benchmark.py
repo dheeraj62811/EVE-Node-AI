@@ -48,7 +48,7 @@ def run_calibrated_benchmark(num_trials_per_class: int = 25, test_snr_db: float 
         raw = synthesize_signal(threat=is_threat)
 
         # -------------------------------------------------------------
-        # 1. EVE-Node: Cicada Notch + STFT Gating + Adaptive Comb Filter
+        # 1. EVE-Node: Cicada Notch + STFT Gating + Adaptive Filtering
         # -------------------------------------------------------------
         b_n, a_n = signal.iirnotch(4200.0, 30.0, sr)
         notched = signal.filtfilt(b_n, a_n, raw)
@@ -79,7 +79,7 @@ def run_calibrated_benchmark(num_trials_per_class: int = 25, test_snr_db: float 
             fn_p += 1
 
         # -------------------------------------------------------------
-        # 2. Static Energy Baseline: Fixed Bandpass > Energy Threshold
+        # 2. Static Energy Baseline: Fixed Bandpass > Threshold
         # -------------------------------------------------------------
         b_b, a_b = signal.butter(4, [250 / (0.5 * sr), 3500 / (0.5 * sr)], btype='band')
         base_sig = signal.filtfilt(b_b, a_b, raw)
@@ -104,14 +104,19 @@ def run_calibrated_benchmark(num_trials_per_class: int = 25, test_snr_db: float 
     p_p, r_p, f1_p, fpr_p = calc(tp_p, fp_p, fn_p, tn_p)
     p_base, r_base, f1_base, fpr_base = calc(tp_b, fp_b, fn_b, tn_b)
 
+    def safe_pct(val, base):
+        if base < 1e-6:
+            return "+100.0%" if val > 0 else "0.0%"
+        return f"{((val - base) / base) * 100:+.1f}%"
+
     print("\n" + "=" * 80)
     print("                     EVALUATION RESULTS TABLE (EVIDENCE)")
     print("=" * 80)
     print(f"{'Metric':<25} | {'Static Baseline':<18} | {'EVE-Node (Proposed)':<20} | {'Improvement'}")
     print("-" * 80)
-    print(f"{'Precision':<25} | {p_base:<18.3f} | {p_p:<20.3f} | {((p_p - p_base)/p_base)*100:+.1f}%")
-    print(f"{'Recall':<25} | {r_base:<18.3f} | {r_p:<20.3f} | {((r_p - r_base)/r_base)*100:+.1f}%")
-    print(f"{'F1-Score':<25} | {f1_base:<18.3f} | {f1_p:<20.3f} | {((f1_p - f1_base)/f1_base)*100:+.1f}%")
+    print(f"{'Precision':<25} | {p_base:<18.3f} | {p_p:<20.3f} | {safe_pct(p_p, p_base)}")
+    print(f"{'Recall':<25} | {r_base:<18.3f} | {r_p:<20.3f} | {safe_pct(r_p, r_base)}")
+    print(f"{'F1-Score':<25} | {f1_base:<18.3f} | {f1_p:<20.3f} | {safe_pct(f1_p, f1_base)}")
     print(f"{'False Positives':<25} | {fp_b:<18} | {fp_p:<20} | -{fp_b - fp_p} Reduction")
     print(f"{'Acoustic SNR Gain':<25} | {'+3.80 dB':<18} | {'+10.97 dB':<20} | +7.17 dB Net Gain")
     print(f"{'Edge Compute/Battery Saved':<25} | {'0.0%':<18} | {'60.0%':<20} | +60.0% Conservation")
