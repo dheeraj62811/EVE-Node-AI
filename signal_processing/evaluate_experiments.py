@@ -1,5 +1,8 @@
 """
 Multi-Condition DSP Stress-Test & Experimental Benchmark Suite
+File: signal_processing/evaluate_experiments.py
+Track: Forests & Wildlife Intelligent Sensing (Track 2)
+Authors: Ciphera Team
 """
 
 import time
@@ -9,6 +12,7 @@ from .filtering import apply_insect_notch, apply_bandpass
 from .noise_reduction import spectral_denoise
 from .segmentation import energy_gate_segmentation
 from .signal_analysis import compute_snr
+
 
 def run_benchmark_suite(sr: int = 16000, duration: float = 2.0):
     t = np.linspace(0, duration, int(sr * duration), endpoint=False)
@@ -43,13 +47,13 @@ def run_benchmark_suite(sr: int = 16000, duration: float = 2.0):
         _, active_mask, _, reduction_pct = energy_gate_segmentation(cleaned, sr)
 
         latency_ms = (time.time() - start_time) * 1000.0
-        
-        # Fixed parameter call using mask=active_mask
+
         snr_base = compute_snr(clean, norm_noisy, mask=active_mask)
         snr_clean = compute_snr(clean, cleaned, mask=active_mask)
         gain = snr_clean - snr_base
 
         print(f"| {name} | {snr_base:.2f} dB | {snr_clean:.2f} dB | **+{gain:.2f} dB** | **{reduction_pct:.1f}%** | {latency_ms:.1f} ms |")
+
 
 if __name__ == "__main__":
     run_benchmark_suite()
