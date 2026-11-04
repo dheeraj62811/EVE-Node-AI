@@ -1,16 +1,25 @@
-import numpy as np
-import scipy.signal as signal
+"""
+Audio Preprocessing: DC-Offset Removal and Peak Normalization
+"""
 
-def preprocess_signal(data, sr, downsample_factor=1):
-    # Remove DC offset (zero-mean centering)
-    centered = data - np.mean(data)
+import numpy as np
+
+def preprocess_signal(audio: np.ndarray, sample_rate: int = 16000) -> tuple[np.ndarray, dict]:
+    """
+    Removes DC bias and normalizes dynamic range to [-1.0, 1.0].
+    """
+    dc_offset = float(np.mean(audio))
+    zero_mean_audio = audio - dc_offset
     
-    # Optional signal reduction via decimation (saves memory/compute in low-power mode)
-    if downsample_factor > 1:
-        centered = signal.decimate(centered, downsample_factor)
-        sr = sr // downsample_factor
-        
-    # Peak normalization to [-1, 1]
-    max_val = np.max(np.abs(centered)) + 1e-10
-    normalized = centered / max_val
-    return normalized, sr
+    peak = float(np.max(np.abs(zero_mean_audio)))
+    if peak > 1e-6:
+        normalized_audio = zero_mean_audio / peak
+    else:
+        normalized_audio = zero_mean_audio
+
+    metadata = {
+        "dc_offset_removed": round(dc_offset, 6),
+        "peak_amplitude": round(peak, 4),
+        "sample_rate": sample_rate
+    }
+    return normalized_audio, metadata
