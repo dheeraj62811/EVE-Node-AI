@@ -1,32 +1,22 @@
 {
     "metrics": {
-        "snr_before_db": -4.12,
-        "snr_after_db": 6.85,
-        "snr_gain_db": 10.97,
-        "data_reduction_pct": 60.0
+        "snr_before_db": 4.0,
+        "snr_after_db": 22.34,
+        "snr_gain_db": 18.34,
+        "data_reduction_pct": 30.5
     },
     "extracted_features": {
-        "spectral_centroid_hz": 815.42,
-        "spectral_bandwidth_hz": 540.18,
-        "zero_crossing_rate": 0.0642,
-        "spectral_flux": 1.245,
-        "mfcc_vector": [
-            -142.3,
-            88.4,
-            -24.1,
-            15.6,
-            -8.2
-        ]
+        "spectral_centroid_hz": 1405.6,
+        "zero_crossing_rate": 0.0604,
+        "rms_energy": 0.0694,
+        "crest_factor": 14.41,
+        "kurtosis": 41.5,
+        "motor_harmonic_ratio": 0.839,
+        "impact_energy_ratio": 0.47,
+        "detected_weather": "CLEAR_CALM"
     },
     "agent_evaluation": {
-        "agent_mode": "ADAPTIVE_DEEP_CLEAN",
-        "agent_decision": "TRIGGER_ILLEGAL_LOGGING_ALERT",
-        "reasoning": "High-confidence mechanical harmonic threat isolated (Centroid: 815.42 Hz, SNR: 6.85 dB).",
-        "battery_compute_saved_pct": 60.0,
-        "next_filter_params": {
-            "lowcut": 380.0,
-            "highcut": 1600.0,
-            "gate_mult": 2.1
-        }
+        "mode": "STANDARD",
+        "status": "DSP_READY"
     }
 }

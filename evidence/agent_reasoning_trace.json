@@ -1,0 +1,23 @@
+{
+  "node_id": "EVE_Node_01",
+  "battery": 82.0,
+  "weather": "CLEAR_CALM",
+  "snr_raw": 4.0,
+  "snr_cleaned": 22.34,
+  "snr_gain": 18.34,
+  "centroid": 1405.6,
+  "kurtosis": 41.5,
+  "crest": 14.41,
+  "motor_ratio": 0.839,
+  "impact_ratio": 0.47,
+  "scores": {
+    "POACHING_BALLISTIC_DISCHARGE": 0.98,
+    "ILLEGAL_LOGGING_CHAINSAW": 0.97,
+    "ILLEGAL_LOGGING_TREE_FELLING": 0.96,
+    "BENIGN_FOREST_BIOPHONY": 0.1
+  },
+  "classification": "POACHING_BALLISTIC_DISCHARGE",
+  "confidence": 0.98,
+  "threat": true,
+  "action": "CODE RED: Armed poaching detected. Dispatch armed tactical rangers immediately."
+}

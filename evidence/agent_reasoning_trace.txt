@@ -1,48 +1,10 @@
-================================================================================
-  EVE-NODE: AUTONOMOUS AGENTIC SENSING & TRIAGE CYCLE
-================================================================================
-
---- [PHASE 1: OBSERVE] Ingesting DSP features & spatial telemetry ---
-  [TOOL CALL] -> inspect_signal_features()
-    |-- Read Metrics: SNR In=-4.12 dB, SNR Out=1.45 dB
-    \-- Features: Centroid=815.42 Hz, ZCR=0.0642
-    Telemetry: SNR_After=1.45 dB, SNR_Gain=5.57 dB
-    Profile: Centroid=815.4 Hz, Bandwidth=740.2 Hz, ZCR=0.0642
-
-  [TOOL CALL] -> cross_check_context(
-    |-- Local Node: EVE_Node_01 | Battery Level: 17.5%
-    \-- Ambient Weather: HEAVY_MONSOON
-    [POWER ALERT] Battery < 20%! Raising frame drop percentile to 80% to preserve node lifespan.
-
---- [PHASE 2: REASON & ADAPT] Clutter evaluation & hypothesis testing ---
-  [REASONING] SNR after baseline pass (1.45 dB) < 2.0 dB threshold. Heavy clutter detected.
-  [ADAPTIVE ACTION] Invoking tool_reconfigure_dsp_filters(lowcut=380.0, highcut=1600.0, gate_mult=2.1)...
-  [TOOL CALL] -> reconfigure_dsp_filters(
-    |-- Target Passband: [380.0 Hz - 1600.0 Hz]
-    |-- Noise Gate Multiplier: 2.10
-    \-- Pipeline Mode: 'ADAPTIVE_DEEP_CLEAN'
-    [DSP LINK] Executing signal_processing.main.run_pipeline()...
-  [POST-ADAPTATION OBSERVE] Refined SNR: 6.85 dB | Centroid: 815.4 Hz | Bandwidth: 500.2 Hz
-
---- [PHASE 3: ACT & DISPATCH] Incident triage and ranger dispatch ---
-  [TOOL CALL] -> dispatch_ranger_response()
-    |-- Threat: ILLEGAL_LOGGING_CHAINSAW (Confidence: 95.0%)
-    \-- Coordinates: 17.5449° N, 78.5718° E
-
-***************************************************************************
- >>> CRITICAL THREAT DISPATCH GENERATED <<<
-{
-    "sensor_node": "EVE_Node_01",
-    "timestamp_utc": "2026-11-04 18:45:00",
-    "incident_classification": "ILLEGAL_LOGGING_CHAINSAW",
-    "confidence_score": 0.95,
-    "geo_coordinates": "17.5449° N, 78.5718° E",
-    "evidence_summary": "Surgical 2-stroke combustion harmonic isolated at 815.4 Hz. Clutter suppressed with 10.97 dB gain via adaptive notch & STFT gating.",
-    "recommended_tactical_action": "Dispatch immediate rapid-response interdiction unit to Sector 4. Active mechanical logging confirmed.",
-    "edge_power_optimization": "60.0% ambient audio suppressed before trigger"
-}
-***************************************************************************
-
-================================================================================
-  EVE-NODE: REASONING CYCLE COMPLETE
-================================================================================
+[OBSERVE] Node: EVE_Node_01 | Battery: 82.0% | Weather: CLEAR_CALM
+[OBSERVE] Metrics: Raw SNR -6.56 dB | Cleaned 2.5 dB (+9.06 dB gain)
+[OBSERVE] Event Dynamics: Centroid 2403.67 Hz | Kurtosis: 2.87 | Crest Factor: 4.06
+[OBSERVE] Active Frame Energy: Motor Band=4% | Impact Band=14%
+[REASON] Threat Classification Check:
+         - Ballistic Signature Check: NEGATIVE
+         - Mechanized Saw Whine Check: NEGATIVE
+         - Tree Felling / Timber Impact Check: POSITIVE
+[ADAPT] Power policy active: BROADBAND_TACTICAL_LINK.
+[ACT] Final Incident Decision: ILLEGAL_LOGGING_TREE_FELLING (Confidence: 94%)

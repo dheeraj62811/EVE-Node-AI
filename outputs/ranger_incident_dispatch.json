@@ -1,10 +1,15 @@
 {
-    "sensor_node": "EVE_Node_01",
-    "timestamp_utc": "2026-11-04 18:45:00",
-    "incident_classification": "ILLEGAL_LOGGING_CHAINSAW",
-    "confidence_score": 0.95,
-    "geo_coordinates": "17.5449° N, 78.5718° E",
-    "evidence_summary": "Surgical 2-stroke combustion harmonic isolated at 815.4 Hz. Clutter suppressed with 10.97 dB gain via adaptive notch & STFT gating.",
-    "recommended_tactical_action": "Dispatch immediate rapid-response interdiction unit to Sector 4. Active mechanical logging confirmed.",
-    "edge_power_optimization": "60.0% ambient audio suppressed before trigger"
+  "incident_classification": "POACHING_BALLISTIC_DISCHARGE",
+  "threat_detected": true,
+  "confidence_score": 0.98,
+  "sensor_node": "EVE_Node_01",
+  "geo_coordinates": "17.5449 N, 78.5718 E",
+  "evidence_summary": "Low-frequency ballistic muzzle-blast transient detected (Kurtosis: 41.5, Centroid: 1405.6 Hz).",
+  "recommended_tactical_action": "CODE RED: Armed poaching detected. Dispatch armed tactical rangers immediately.",
+  "class_probabilities": {
+    "POACHING_BALLISTIC_DISCHARGE": 0.98,
+    "ILLEGAL_LOGGING_CHAINSAW": 0.97,
+    "ILLEGAL_LOGGING_TREE_FELLING": 0.96,
+    "BENIGN_FOREST_BIOPHONY": 0.1
+  }
 }
