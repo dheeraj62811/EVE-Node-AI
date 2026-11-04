@@ -1,0 +1,9 @@
+{
+    "snr_test_condition_db": -4.12,
+    "proposed_precision": 0.962,
+    "proposed_recall": 1.0,
+    "proposed_f1": 0.98,
+    "baseline_f1": 0.261,
+    "false_positive_reduction_pct": 95.0,
+    "edge_power_frames_dropped_pct": 60.0
+}
