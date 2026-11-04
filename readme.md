@@ -116,7 +116,7 @@ pip install -r requirements.txt
 python3 -m streamlit run app.py
 ```
 
-Open `http://localhost:8501` to access the interactive spatial radar and mission console.
+Open https://eve-node-ai-97hwxmliodnlzxdl6hweri.streamlit.app/ to access the interactive spatial radar and mission console.
 
 ---
 
