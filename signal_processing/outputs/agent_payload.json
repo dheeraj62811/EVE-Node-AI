@@ -1,0 +1,32 @@
+{
+    "metrics": {
+        "snr_before_db": -4.12,
+        "snr_after_db": 6.85,
+        "snr_gain_db": 10.97,
+        "data_reduction_pct": 60.0
+    },
+    "extracted_features": {
+        "spectral_centroid_hz": 815.42,
+        "spectral_bandwidth_hz": 540.18,
+        "zero_crossing_rate": 0.0642,
+        "spectral_flux": 1.245,
+        "mfcc_vector": [
+            -142.3,
+            88.4,
+            -24.1,
+            15.6,
+            -8.2
+        ]
+    },
+    "agent_evaluation": {
+        "agent_mode": "ADAPTIVE_DEEP_CLEAN",
+        "agent_decision": "TRIGGER_ILLEGAL_LOGGING_ALERT",
+        "reasoning": "High-confidence mechanical harmonic threat isolated (Centroid: 815.42 Hz, SNR: 6.85 dB).",
+        "battery_compute_saved_pct": 60.0,
+        "next_filter_params": {
+            "lowcut": 380.0,
+            "highcut": 1600.0,
+            "gate_mult": 2.1
+        }
+    }
+}
