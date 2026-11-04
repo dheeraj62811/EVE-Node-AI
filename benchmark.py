@@ -33,7 +33,7 @@ def run_calibrated_benchmark(num_trials_per_class: int = 25, test_snr_db: float 
             chainsaw = np.zeros_like(t)
             for h in range(1, 14):
                 chainsaw += (1.0 / (h ** 0.75)) * np.sin(2 * np.pi * (125.0 * h) * t)
-            scale = np.sqrt((np.mean(noise**2) * (10**(test_snr_db / 10.0))) / np.mean(chainsaw**2))
+            scale = np.sqrt((np.mean(noise**2) * (10**(test_snr_db / 10.0))) / (np.mean(chainsaw**2) + 1e-12))
             raw = (chainsaw * scale) + noise
         else:
             raw = noise
@@ -42,10 +42,14 @@ def run_calibrated_benchmark(num_trials_per_class: int = 25, test_snr_db: float 
     tp_p, fp_p, fn_p, tn_p = 0, 0, 0, 0
     tp_b, fp_b, fn_b, tn_b = 0, 0, 0, 0
 
-    for is_threat in [True, False] * (num_trials_per_class * 2):
+    total_runs = num_trials_per_class * 2
+    for i in range(total_runs):
+        is_threat = (i % 2 == 0)
         raw = synthesize_signal(threat=is_threat)
 
-        # 1. EVE-Node Proposed: Cicada Notch + STFT Gating + Adaptive Comb Filter
+        # -------------------------------------------------------------
+        # 1. EVE-Node: Cicada Notch + STFT Gating + Adaptive Comb Filter
+        # -------------------------------------------------------------
         b_n, a_n = signal.iirnotch(4200.0, 30.0, sr)
         notched = signal.filtfilt(b_n, a_n, raw)
         b_bp, a_bp = signal.butter(4, [350 / (0.5 * sr), 1800 / (0.5 * sr)], btype='band')
@@ -63,22 +67,32 @@ def run_calibrated_benchmark(num_trials_per_class: int = 25, test_snr_db: float 
         zcr = float(np.mean(np.abs(np.diff(np.sign(sub_audio + 1e-12)))) / 2.0)
         signal_power = float(np.mean(sub_audio ** 2))
 
-        pred_prop = (400.0 <= centroid <= 1400.0) and (zcr < 0.12) and (signal_power > 0.003)
+        pred_prop = bool((400.0 <= centroid <= 1400.0) and (zcr < 0.12) and (signal_power > 0.003))
 
-        if pred_prop and is_threat: tp_p += 1
-        elif pred_prop and not is_threat: fp_p += 1
-        elif not pred_prop and not is_threat: tn_p += 1
-        else: fn_p += 1
+        if pred_prop and is_threat:
+            tp_p += 1
+        elif pred_prop and not is_threat:
+            fp_p += 1
+        elif not pred_prop and not is_threat:
+            tn_p += 1
+        else:
+            fn_p += 1
 
-        # 2. Static Baseline: Fixed Bandpass > Threshold
+        # -------------------------------------------------------------
+        # 2. Static Energy Baseline: Fixed Bandpass > Energy Threshold
+        # -------------------------------------------------------------
         b_b, a_b = signal.butter(4, [250 / (0.5 * sr), 3500 / (0.5 * sr)], btype='band')
         base_sig = signal.filtfilt(b_b, a_b, raw)
-        pred_base = np.mean(base_sig ** 2) > 0.02
+        base_pred = bool(np.mean(base_sig ** 2) > 0.02)
 
-        if base_pred and is_threat: tp_b += 1
-        elif base_pred and not is_threat: fp_b += 1
-        elif not base_pred and not is_threat: tn_b += 1
-        else: fn_b += 1
+        if base_pred and is_threat:
+            tp_b += 1
+        elif base_pred and not is_threat:
+            fp_b += 1
+        elif not base_pred and not is_threat:
+            tn_b += 1
+        else:
+            fn_b += 1
 
     def calc(tp, fp, fn, tn):
         p = tp / (tp + fp + 1e-9)
@@ -97,7 +111,7 @@ def run_calibrated_benchmark(num_trials_per_class: int = 25, test_snr_db: float 
     print("-" * 80)
     print(f"{'Precision':<25} | {p_base:<18.3f} | {p_p:<20.3f} | {((p_p - p_base)/p_base)*100:+.1f}%")
     print(f"{'Recall':<25} | {r_base:<18.3f} | {r_p:<20.3f} | {((r_p - r_base)/r_base)*100:+.1f}%")
-    print(f"{'F1-Score':<25} | {f1_base:<18.3f} | {f1_p:<20.3f} | {((f1_prop if 'f1_prop' in locals() else (f1_p - f1_base)/f1_base))*100:+.1f}%")
+    print(f"{'F1-Score':<25} | {f1_base:<18.3f} | {f1_p:<20.3f} | {((f1_p - f1_base)/f1_base)*100:+.1f}%")
     print(f"{'False Positives':<25} | {fp_b:<18} | {fp_p:<20} | -{fp_b - fp_p} Reduction")
     print(f"{'Acoustic SNR Gain':<25} | {'+3.80 dB':<18} | {'+10.97 dB':<20} | +7.17 dB Net Gain")
     print(f"{'Edge Compute/Battery Saved':<25} | {'0.0%':<18} | {'60.0%':<20} | +60.0% Conservation")
